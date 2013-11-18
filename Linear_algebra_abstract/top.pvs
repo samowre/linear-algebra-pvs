@@ -1,0 +1,34 @@
+%-------------------------------------------------------------------------
+%
+%      Index:
+%      ------
+%
+%	more_vect_of_vect	-- some more theory about vectors of vectors
+%	more_sigma_vector	-- theory and lemmas about the summation of vectors
+%
+%%	bases			-- theory about bases (linear independence, coordinate change matrix...)
+%%	bilinear		-- bilienar applications R^n x R^n -> R
+%
+%
+%
+%  This theory was designed for making libraries and is not intended
+%  for importing. One should directly import one of the above listed
+%  theories.
+%
+%
+%------------------------------------------------------------------------
+
+
+top: THEORY
+
+
+BEGIN
+
+ IMPORTING	more_vect_of_vect,
+		more_sigma_vector,
+
+		bases,
+		bilinear
+
+
+END top

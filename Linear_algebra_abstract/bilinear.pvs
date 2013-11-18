@@ -1,0 +1,84 @@
+
+% In this file we define bilinear applications and develop the theory related
+% We also introduce the operators between bilinear applications and matrices
+
+
+bilinear: THEORY
+
+
+ BEGIN 
+
+ IMPORTING bases,linear_algebra@matrices
+
+ n: VAR posnat
+
+
+% Definition of bilinear applications
+ Bilinear: TYPE = [# dim: posnat, h: [[Vector[dim],Vector[dim]] -> real] #]
+
+ bilinear?(H: Bilinear): bool =
+ 	      FORALL (x1,x2,y: Vector[H`dim],a: real): H`h(a*x1 + x2,y) = a*H`h(x1,y) + H`h(x2,y)
+	      AND
+	      FORALL(x,y1,y2: Vector[H`dim],a: real): H`h(x,a*y1 + y2) = a*H`h(x,y1) + H`h(x,y2)
+
+
+ Bilinear(n): TYPE = {H: Bilinear| H`dim = n AND bilinear?(H)}
+
+ 
+
+% Relationship between bilinear applications and matrices HAY QUE HACER LA DEF BIEN, CON LA BASE NUEVA GENERICA
+ L(n,m:posnat,e:BASE(n),v:BASE(m)): [Map_linear(n,m) -> Mat(m,n)] = (lambda(f: Map_linear(n,m)): 
+(#rows:= m,cols:= n,matrix:= lambda(j: below[m],i: below[n]): (coord(m,v)(f`mp(e(i))))(j)#))
+
+
+
+ Lb(n): [Bilinear(n) -> Mat(n,n)] = 
+ 	LAMBDA(H: Bilinear(n)): (# rows := n,cols := n,matrix := LAMBDA(i: below[n],j:below[n]): H`h(e(n)(i),e(n)(j))#)
+
+
+ Tb(n): [Mat(n,n) -> Bilinear(n)] = 
+       	LAMBDA(A: Mat(n,n)): (# dim := n,h := LAMBDA(x,y: Vector[n]): x*(A*y) #)
+
+
+% Bijection between bilinear applications and matrices
+ Lb_Tb: LEMMA FORALL (A: Mat(n,n)): Lb(n)(Tb(n)(A)) = A
+
+ Iso_Lb: LEMMA  bijective?(Lb(n))
+
+
+Iso_general:THEOREM FORALL(n,m:posnat,e:BASE(n),v:BASE(m)): bijective?(L(n,m,e,v))
+ 
+ Lb_inverse: LEMMA inverse(Lb(n)) = Tb(n)
+
+ Iso_Tb: LEMMA  bijective?(Tb(n))
+
+%L_cano_bases: LEMMA FORALL(n:posnat):L(n,n,e(n),e(n))=L(n,n) 
+
+
+
+%L(n,m)(e:Base(n)): [Map_linear(n,m)->Mat(m,n)]=(lambda (f: Map_linear(n,m)): 
+%                 (#rows:=m,cols:=n,matrix:=lambda (j: below[m],i:below[n]): f`mp(e(i))(j)#))
+  
+%diagonalizable?(n)(H:Bilinear(n)):bool= diagonal?(L(H`Dim)(H))
+%Diagonalizable?(n,m)(f:Map_linear(n,m)):bool=diagonal?(L(n,m)(f))
+%symmetric?(n)(H:Bilinear(n)):bool=FORALL (x,y:Vector[n]): H`h(x,y)=H`h(y,x)
+
+%symmetric_diagonal_bilinear:LEMMA FORALL (H:Bilinear(n)):symmetric?(n)(H)
+%                                  IMPLIES 
+%                                  diagonalizable?(n)(H)   
+
+END bilinear
+
+
+
+% COSAS QUE NO VALEN
+% Definition of bilinear applications
+% Bilinear: TYPE = [# dim1: posnat, dim2: posnat, h: [[Vector[dim1],Vector[dim2]] -> real] #]
+
+% bilinear?(H: Bilinear): bool =
+% 	      FORALL (x1,x2: Vector[H`dim1],y: Vector[H`dim2],a: real): H`h(a*x1 + x2,y) = a*H`h(x1,y) + H`h(x2,y)
+%	      AND
+%	      FORALL(x: Vector[H`dim1], y1,y2: Vector[H`dim2],a: real): H`h(x,a*y1 + y2) = a*H`h(x,y1) + H`h(x,y2)
+
+
+ %Bilinear(m,n): TYPE = {H: Bilinear| H`dim1 = n AND H`dim2 = m AND bilinear?(H)}

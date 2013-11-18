@@ -1,0 +1,49 @@
+
+% In this file we prove some useful lemmas about the summation of vectors
+
+
+more_sigma_vector: THEORY
+
+
+ BEGIN 
+
+ IMPORTING linear_algebra@sigma_vector,more_vect_of_vect
+
+ m,n: VAR posnat  
+
+
+
+
+ SigmaV_scal: LEMMA FORALL (r: real, m: posnat,i,j: below[m],F: [below[m] -> Vector[n]]): SigmaV[below[m],n](i,j,r*F) =r*SigmaV[below[m],n](i,j,F)
+
+
+
+ SigmaV_eq: LEMMA FORALL (i,j: below[n],a,b: [below[n] -> Vector[n]]): (i <= j AND FORALL(k: below[n]): a(k) = b(k)) IMPLIES SigmaV(i,j,a) = SigmaV(i,j,b)
+
+ SigmaV_eq_gen: LEMMA FORALL (i,j: below[m],F,G: [below[m] -> Vector[n]]): 
+ 		(i <= j AND FORALL (k: subrange[i,j]): F(k) = G(k)) 
+		IMPLIES 
+		SigmaV[below[m],n](i,j,F) = SigmaV[below[m],n](i,j,G)
+
+
+
+ SigmaV_split: LEMMA FORALL (m: posnat,i,j,k: below[m],F: [below[m] -> Vector[n]]): 
+ 	       (i <= k AND k <= j) 
+	       IMPLIES 
+	       SigmaV[below[m],n](i,j,F) = SigmaV[below[m],n](i,k,F) + SigmaV[below[m],n](k + 1,j,F)
+
+ SigmaV_middle: LEMMA FORALL (m: posnat,i,j,k: below[m],F: [below[m] -> Vector[n]]): 
+ 	       (i <= k AND k <= j) 
+	       IMPLIES 
+	       SigmaV[below[m],n](i,j,F) = SigmaV[below[m],n](i,k - 1,F) + F(k) + SigmaV[below[m],n](k + 1,j,F)
+
+
+
+ SigmaV_plus: LEMMA FORALL (i,j: below[n],a,b: [below[n] -> Vector[n]]): i <= j IMPLIES SigmaV[below[n],n](i,j,LAMBDA(k: below[n]): a(k) + b(k)) = SigmaV(i,j,a) + SigmaV(i,j,b)
+
+ SigmaV_minus: LEMMA FORALL (i,j: below[n],a,b: [below[n] -> Vector[n]]): i <= j IMPLIES SigmaV[below[n],n](i,j,LAMBDA(k: below[n]): a(k) - b(k)) = SigmaV(i,j,a) - SigmaV(i,j,b)
+
+
+END more_sigma_vector
+
+

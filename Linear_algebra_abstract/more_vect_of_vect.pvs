@@ -1,0 +1,19 @@
+
+% In this file we define the inverse of a vector of vectors
+
+
+more_vect_of_vect[n,m: posnat]: THEORY
+
+
+ BEGIN 
+
+ IMPORTING linear_algebra@vect_of_vect
+
+
+
+ -(V: Vector_of_Vectors[n,m]): Vector_of_Vectors[n,m] = LAMBDA (i: below[m]): -V(i)
+
+
+END more_vect_of_vect
+
+

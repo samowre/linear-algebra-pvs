@@ -1,0 +1,137 @@
+bases: THEORY
+
+
+ BEGIN 
+
+ IMPORTING more_sigma_vector,linear_algebra@matrices,linear_algebra@linear_map_def,linear_algebra@matrix_operator
+
+ m,n: VAR posnat
+
+% Definition of Linear (in)dependence.
+% We consider m vectors of Rn, given by a vector of vectors, and one vector of Rm, which provides the coeficients
+ lin_comb(n,m)(V: Vector_of_Vectors[n,m],a: Vector[m]): Vector[n] = SigmaV[below[m],n](0,m - 1,a*V)
+
+ lin_indep?(n,m)(V: Vector_of_Vectors[n,m]): bool = FORALL (a: Vector[m]): lin_comb(n,m)(V,a) = zero[n] IMPLIES a = zero[m]
+
+ lin_dep?(n,m)(V: Vector_of_Vectors[n,m]): bool = NOT lin_indep?(n,m)(V)
+
+ lin_dep_comp:  LEMMA FORALL (V,W:  Vector_of_Vectors[n,m]): V=W AND lin_dep?(n,m)(V) IMPLIES lin_dep?(n,m)(W)
+
+% Alternative definition for linear dependence
+ lin_dep_charac: LEMMA FORALL (V: Vector_of_Vectors[n,m]): 
+ 		 (EXISTS (i: below[m],a: Vector[m]): V(i) = SigmaV[below[m],n](0,i - 1,a*V) + SigmaV[below[m],n](i + 1,m - 1,a*V)) 
+		 IFF 
+		 lin_dep?(n,m)(V)
+
+
+ lin_dep_max: LEMMA FORALL (V: Vector_of_Vectors[n,m]): m > n IMPLIES lin_dep?(n,m)(V) 
+
+
+
+% Spanning property
+ span?(n,m)(V: Vector_of_Vectors[n,m]): bool = FORALL (v: Vector[n]): (EXISTS (a: Vector[m]): lin_comb(n,m)(V,a) = v)
+
+ span_min: LEMMA FORALL (V: Vector_of_Vectors[n,m]): span?(n,m)(V) IMPLIES m >= n 
+
+
+
+% Definition of base
+ base?(n,m)(V: Vector_of_Vectors[n,m]): bool = lin_indep?(n,m)(V) AND span?(n,m)(V)
+
+
+
+% The number of elements of a base coincides with the dimension
+ base_dim: LEMMA FORALL(n,m: posnat,V: Vector_of_Vectors[n,m]): base?(n,m)(V) IMPLIES n = m 
+
+ base?(n)(V: Vector_of_Vectors[n,n]): bool = base?(n,n)(V)
+
+
+ BASE(n): TYPE = (base?(n))
+
+
+
+% Lemmas about basis
+ coord_unique: LEMMA FORALL (e: (base?(n)),a,b: Vector[n]): 
+ 	       lin_comb(n,n)(e,a) = lin_comb(n,n)(e,b)
+	       IMPLIES
+	       a = b
+
+%cano_base: LEMMA base?(n,n)(e(n))
+
+% Coordinates
+
+% Application which given a base and the coordinates yields the associated vector
+
+Lt(n:posnat,e:BASE(n)):[[below[n]->real]->Vector[n]]=(LAMBDA(a:[below[n]->real]):lin_comb(n,n)(e,a))
+
+Iso_coord:LEMMA FORALL (n:posnat,e:BASE(n)):bijective?(Lt(n,e))
+
+% Definition of the coordinates. Given a vector (and a base), the inverse of the previous application provides the coordinates
+coord(n:posnat,e: (base?(n))):[Vector[n]->[below[n]->real]]=LAMBDA(v:Vector[n]): inverse(Lt(n,e))(v)
+
+coord_vect_inv:LEMMA  FORALL (n:posnat,e:BASE(n),v:Vector[n]):Lt(n,e)(coord(n,e)(v))=v 
+
+% Another way of defining coordinates
+
+coord2_unique: LEMMA FORALL (n: posnat,e: (base?(n)),v: Vector[n]): singleton?({a: Vector[n] | v = lin_comb(n,n)(e,a)})
+
+coord2(n: posnat,e: (base?(n))): [Vector[n] -> Vector[n]] =  LAMBDA(v: Vector[n]): singleton_elt({a: Vector[n] | v = lin_comb(n,n)(e,a)})
+
+coord_coord2: LEMMA FORALL (n: posnat,e: BASE(n),v: Vector[n]): coord(n,e)(v) = coord2(n,e)(v)
+
+coord_vector:LEMMA FORALL (n:posnat,e:BASE(n),v:Vector[n]):v = lin_comb(n,n)(e,coord(n,e)(v)) 
+
+coord_uni:LEMMA FORALL(n:posnat,e:BASE(n),v:Vector[n],a:[below[n]->real]): v=lin_comb(n,n)(e,a) IMPLIES a=coord(n,e)(v)
+
+L(n,m:posnat,e:BASE(n),v:BASE(m)): [Map_linear(n,m) -> Mat(m,n)] = (lambda(f: Map_linear(n,m)): 
+(#rows:= m,cols:= n,matrix:= lambda(j: below[m],i: below[n]): (coord(m,v)(f`mp(e(i))))(j)#))
+
+
+Iso_general:THEOREM FORALL(n,m:posnat,e:BASE(n),v:BASE(m)): bijective?(L(n,m,e,v))
+
+%Matrix_inv_gen(n:posnat,e,v:BASE(n)):type= {A: Square | squareMat?(n)(A) and bijective?(n)()}
+
+ % Definition of the inverse matrix
+ inv(n:posnat,e,v:BASE(n)): [Matrix_inv(n) -> Matrix_inv(n)] = 
+                  (lambda (A: Matrix_inv(n)): L(n,n,e,v)(inverse(n)(inverse(L(n,n,e,v))(A))))
+
+L_cano_bases: LEMMA FORALL(n:posnat):L(n,n,e(n),e(n))=L(n,n) 
+
+
+%change_base_matrix:LEMMA FORALL(e,v:BASE(n)):inv(n,e,v)(L(n,n,e,v)(id(n)))=L(n,n,e,v)(inverse(n)(id(n)))
+
+M(n:posnat,v,e:BASE(n)):Mat(n,n)=(#rows:=n,cols:=n,matrix:=LAMBDA(i,j:below[n]):coord(n,e)(v(j))(i)#)
+%r:  posnat
+%*(M: Matrix, (v: Vector_of_Vectors[M`cols,r])):[ Vector_of_Vectors[M`rows,r]] = LAMBDA (i: below(r)): M*v(i);
+
+change_bases:LEMMA FORALL (n:posnat,e,v:BASE(n)):%e=M(n,v,e)*v	and 
+                           L(n,n,e,v)(id(n))=M(n,e,v)
+
+%change_mat_bij: Lemma
+%  FORALL (n: posnat, v, e: BASE(n)):
+%    square?(M(n, v, e)) AND
+%     squareMat?(n)(M(n, v, e)) AND bijective?(n)(T(n, n)(M(n, v, e)))
+
+change_mat_inv:LEMMA FORALL(n:posnat,v,e:BASE(n)):inv(n,e,v)(M(n,e,v))=M(n,v,e)
+
+
+%coord(n)(v: Vector[n],e: (base?(n))) : TYPE = [#n:posnat,a:Vector[n],v := lin_comb(n,n)(e,a)#]
+ %coord(n)(v: Vector[n],e: (base?(n))): Vector[n] = {a:Vector[n]  | v = lin_comb(n,n)(e,a)}  % ESCRIBIR ESTO BIEN
+
+%zero[n]
+
+change_mat(n)(e,f: (base?(n))): Mat(n,n) = (# rows := n,cols := n,matrix := LAMBDA(i,j: below[n]): coord(n,f)(e(j))(i) #)
+
+ change_mat_invertible: LEMMA FORALL (e,f: (base?(n))): change_mat(n)(e,f)*change_mat(n)(f,e) = I(n)
+
+ change_mat_inverse: LEMMA FORALL (e,f: (base?(n))): inverse?(change_mat(n)(e,f))(change_mat(n)(f,e)) 
+
+
+ change_coord: LEMMA FORALL (v: Vector[n],e,f: (base?(n))): coord(n,f)(v) = change_mat(n)(e,f) * coord(n,e)(v)
+
+ 
+Kk:lemma -2>0
+
+END bases
+
+

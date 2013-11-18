@@ -1,0 +1,553 @@
+
+%%% Gauss-Jordan elimination
+
+gauss_jordan: theory
+begin
+ importing elementary_matrices
+ M, N, P: VAR Matrix
+
+ %%% The basic calling structure is
+ %%% gaussian_elimination
+ %%%   gaussian_elimination_rec
+ %%%      find_pivot_row
+ %%%      ge2 --> elemM2
+ %%%      ge3 --> elemM3
+ %%%      ge1
+ %%%         ge1_rec
+ %%%            ge1_step --> elemM1
+ %%% Where each *_rec function involves a recursive call as well.
+
+ %% Pivots
+
+ % For a given nonzero row, the pivot is the fist nonzero column
+ pivot(M: Matrix, i: below(M`rows) | nonzero_row?(M, i)):
+      {j: below(M`cols) | j = min({j: below(M`cols) | M`matrix(i, j) /= 0})}
+
+ pivot_prop: lemma
+   forall (M: Matrix, i: below(M`rows) | nonzero_row?(M, i)):
+       M`matrix(i, pivot(M, i)) /= 0
+     & forall (j: below(pivot(M, i))): M`matrix(i, j) = 0
+
+ % Given a matrix M and a row r st there is a nonzero row >= r,
+ % find_pivot_row returns one with a minimal pivot column (not unique)
+ find_pivot_row(M: Matrix,
+                r: below(M`rows) | exists (i: subrange(r, M`rows-1)):
+                                     nonzero_row?(M, i)):
+   {i: subrange(r, M`rows-1) | nonzero_row?(M, i) &
+                                forall (j: subrange(r, M`rows-1)):
+                                  nonzero_row?(M, j) => pivot(M, i) <= pivot(M, j)}
+
+
+ % A matrix M is in row echelon form if all zero rows are below nonzero rows,
+ % and upper row pivot points are to the left of lower row pivot points.
+ row_echelon_form?(M: Matrix): bool =
+       (forall (i, j: below(M`rows)): nonzero_row?(M, i) and zero_row?(M, j) implies i < j)
+   and (forall (i: below(M`rows)):
+         zero_row?(M, i) or (forall (j: below(i)): pivot(M, i) > pivot(M, j)))
+
+ % This is for the Gaussian Elimination recursive invariant - only the top rows
+ % up to r are in row echelon form.
+ row_echelon_form_below?(M: Matrix, r: upto(M`rows)): bool =
+   (forall (i, j: below(r)): nonzero_row?(M, i) and zero_row?(M, j) implies i < j)
+   & forall (i: below(r)):
+        nonzero_row?(M, i) => forall (j: below(i)): pivot(M, i) > pivot(M, j)
+
+ % Reduced Row Echelon Form (rref) in addition to Row Echelon Form, every leading
+ % coefficient is 1 and is the only nonzero entry in its column.
+
+ % Here we take an end_row, to allow its use during Gaussian Elimination
+ % Plus we add stronger constraints, (1) if there is a nonzero row under the
+ % end_row, then all rows above the end_row are nonzero, and (2) that the
+ % lhs is mostly zeros, even > the end_row
+ rref_row_inv(M: Matrix, i: below(M`rows)): bool =
+     ((exists (r: subrange(i, M`rows-1)): nonzero_row?(M, r))
+        => (forall (j: below(i)): nonzero_row?(M, j)))
+   & nonzero_row?(M, i) =>
+       let p = pivot(M, i)
+        in   M`matrix(i, p) = 1
+           & (forall (j: below(M`rows)): j /= i => M`matrix(j, p) = 0)
+           & (forall (j: subrange(i, M`rows-1), k: below(p)): M`matrix(j, k) = 0)
+
+ rref?(M: Matrix, end_row: upto(M`rows)): bool =
+       row_echelon_form_below?(M, end_row)
+   and forall (i: below(end_row)): rref_row_inv(M, i)
+
+ reduced_row_echelon_form?(M: Matrix): bool =
+     row_echelon_form?(M)
+   & (forall (r: below(M`rows)):
+        nonzero_row?(M, r) =>
+          let p = pivot(M, r)
+           in   M`matrix(r, p) = 1
+              & (forall (j: below(M`rows)): j /= r => M`matrix(j, p) = 0))
+
+ rref_has_nonzero_row_below: lemma
+   forall (M: Matrix,
+           cr: below(M`rows) |   rref?(M, cr)
+                               & (forall (i: below(cr)): nonzero_row?(M, i))):
+     reduced_row_echelon_form?(M)
+       or exists (i: subrange(cr, M`rows-1)): nonzero_row?(M, i)
+
+ %% The rest of this theory is a buildup to the proof of the TCCs for
+ %% Gaussian Elimination - the assumptions generally come from the
+ %% gaussian_elimination_rec recursive invariants, which first finds the
+ %% next pivot row, swaps it with the current row (ge2), normalizes it
+ %% (ge3), and then clears out the rest of that column (ge1).
+ %% Hence at each step we know what happened before.
+
+ %% Lemmas for TCCs from ge2
+
+ % Swapping rows doesn't change the pivots
+ elemM2_fixes_pivots: lemma
+   forall (M: Matrix,
+           cr: below(M`rows),
+           pr: below(M`rows) | pr /= cr):
+     let e2 = elemM2(M`rows)(cr, pr),
+         M2 = e2 * M
+      in forall (i: below(M2`rows)):
+           nonzero_row?(M2, i)
+             => pivot(M2, i) = if i = cr then pivot(M, pr)
+                               elsif i = pr then pivot(M, cr)
+                               else pivot(M, i) endif
+
+ elemM2_rref_pivot: lemma
+  forall (M: Matrix,
+          cr: below(M`rows)
+              | rref?(M, cr) & (FORALL (i: below(cr)): nonzero_row?(M, i)),
+          pr: subrange(cr, M`rows-1)
+              | nonzero_row?(M, pr) &
+                 (FORALL (i: subrange(cr, M`rows - 1)):
+                    nonzero_row?(M, i) => pivot(M, pr) <= pivot(M, i))):
+    cr = pr or
+    let e2 = elemM2(M`rows)(cr, pr),
+        M2 = e2 * M
+     in   same_dim?(M2, M)
+        & rref?(M2, cr)
+        & (forall (i: upto(cr)): nonzero_row?(M2, i))
+        & (forall (i: subrange(cr, M2`rows-1)):
+            nonzero_row?(M2, i) => pivot(M2, cr) <= pivot(M2, i))
+
+ %% Lemmas for TCCs from ge3
+
+ % This is the simple one, as even for the affected row, the pivot is fixed
+ elemM3_fixes_pivots: lemma
+   forall (M: Matrix,
+           cr: below(M`rows) | nonzero_row?(M, cr)):
+     let v = M`matrix(cr, pivot(M, cr)),
+         e3 = elemM3(M`rows)(cr)(1/v),
+         M3 = e3 * M
+      in forall (i: below(M3`rows)):
+           nonzero_row?(M3, i)
+             => pivot(M3, i) = pivot(M, i)
+
+ elemM3_rref_pivot: lemma
+   forall (M: Matrix,
+           cr: below(M`rows) |   rref?(M, cr)
+                               & (forall (i: upto(cr)): nonzero_row?(M, i))
+                               & (forall (i: subrange(cr, M`rows-1)):
+                                    nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i))):
+     M`matrix(cr, pivot(M, cr)) = 1 or
+     let v = M`matrix(cr, pivot(M, cr)),
+         e3 = elemM3(M`rows)(cr)(1/v),
+         M3 = e3 * M
+      in   same_dim?(M3, M)
+         & rref?(M3, cr)
+         & (forall (i: upto(cr)): nonzero_row?(M3, i))
+         & M3`matrix(cr, pivot(M3, cr)) = 1
+         & (forall (i: subrange(cr, M3`rows-1)):
+               nonzero_row?(M3, i) => pivot(M3, cr) <= pivot(M3, i))
+
+ % Lemmas for TCCs from ge1_step
+
+ % In this case, if row r is changed it's pivot may be changed, but all
+ % other rows are unchanged.
+ elemM1_fixes_pivots: lemma
+  forall (M: Matrix,
+          cr: below(M`rows),
+          r: below(M`rows) | r /= cr,
+          a: real):
+    let e1 = elemM1(M`rows)(r, cr)(a)
+     in forall (i: below(M`rows)):
+          i /= r & nonzero_row?(M, i) => pivot(e1*M, i) = pivot(M, i)
+
+ % This is for the r row - stays fixed if pivot(M, r) < pivot(M, cr)
+ elemM1_fixes_r_pivot: lemma
+  forall (M: Matrix,
+          cr: below(M`rows) | nonzero_row?(M, cr),
+          r: below(M`rows) | r /= cr & nonzero_row?(M, r) & pivot(M, r) < pivot(M, cr),
+          a: real):
+    let e1 = elemM1(M`rows)(r, cr)(a)
+     in pivot(e1*M, r) = pivot(M, r)
+
+ elemM1_rref_pivot: lemma
+  forall (OM: Matrix,
+          M: Matrix | same_dim?(M, OM),
+          cr: below(M`rows) |   rref?(M, cr)
+                              & (forall (i: upto(cr)): nonzero_row?(M, i))
+                              & M`matrix(cr, pivot(M, cr)) = 1
+                              & forall (i: subrange(cr, M`rows-1)):
+                                  nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i),
+          r: below(M`rows) | forall (i: below(r)):
+                                  i /= cr => M`matrix(i, pivot(M, cr)) = 0):
+     r = cr or M`matrix(r, pivot(M, cr)) = 0 or
+     let a = -M`matrix(r, pivot(M, cr)),
+         e1 = elemM1(M`rows)(r, cr)(a),
+         M1 = e1 * M
+      in   same_dim?(M1, OM)
+         & rref?(M1, cr)
+         & (forall (i: upto(cr)): nonzero_row?(M1, i))
+         & M1`matrix(cr, pivot(M1, cr)) = 1
+         & (forall (i: subrange(cr, M1`rows - 1)):
+             nonzero_row?(M1, i) => pivot(M1, cr) <= pivot(M1, i))
+         & (forall (i: upto(r)): i /= cr => M1`matrix(i, pivot(M1, cr)) = 0)
+
+ elemM1_prod: lemma
+  forall (OM: Matrix,
+          M: Matrix | same_dim?(M, OM),
+          el: list[ElemMat(M`rows)] | elem_product_left(OM, el) = M,
+          cr: below(M`rows) | rref?(M, cr)
+                              & (forall (i: upto(cr)): nonzero_row?(M, i))
+                              & M`matrix(cr, pivot(M, cr)) = 1
+                              & forall (i: subrange(cr, M`rows-1)):
+                                  nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i),
+          r: below(M`rows) | forall (i: below(r)):
+                                i /= cr => M`matrix(i, pivot(M, cr)) = 0):
+   r = cr or M`matrix(r, pivot(M, cr)) = 0 or
+    let a = -M`matrix(r, pivot(M, cr)),
+        e1 = elemM1(M`rows)(r, cr)(a)
+     in every[Matrix]
+             (LAMBDA (x: Matrix):
+                square?(x) AND
+                 squareMat?(OM`rows)(x) AND elemMat?(OM`rows)(x))
+             (append1[Matrix](el, e1))
+          AND elem_product_left(OM, append1[Matrix](el, e1)) = e1 * M
+
+ ge1_step(OM: Matrix,
+          M: Matrix | same_dim?(M, OM),
+          el: list[ElemMat(M`rows)] | elem_product_left(OM, el) = M,
+          cr: below(M`rows) |   rref?(M, cr)
+                              & (forall (i: upto(cr)): nonzero_row?(M, i))
+                              & M`matrix(cr, pivot(M, cr)) = 1
+                              & forall (i: subrange(cr, M`rows-1)):
+                                  nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i),
+          r: below(M`rows) | forall (i: below(r)):
+                                  i /= cr => M`matrix(i, pivot(M, cr)) = 0):
+    [M1: {M1: Matrix |   same_dim?(M1, OM)
+                       & rref?(M1, cr)
+                       & (forall (i: upto(cr)): nonzero_row?(M1, i))
+                       & M1`matrix(cr, pivot(M1, cr)) = 1
+                       & (forall (i: subrange(cr, M1`rows-1)):
+                           nonzero_row?(M1, i) => pivot(M1, cr) <= pivot(M1, i))
+                       & (forall (i: upto(r)):
+                           i /= cr => M1`matrix(i, pivot(M1, cr)) = 0)},
+     {el: list[ElemMat(OM`rows)] | elem_product_left(OM, el) = M1}] =
+  if r = cr or M`matrix(r, pivot(M, cr)) = 0
+  then (M, el)
+  else let a = -M`matrix(r, pivot(M, cr)),
+           e1 = elemM1(M`rows)(r, cr)(a)
+        in (e1 * M, append1[Matrix](el, e1))
+  endif
+
+ ge1_step_rref_pivot: lemma
+   forall (OM: Matrix,
+           M: Matrix | same_dim?(M, OM),
+           el: list[ElemMat(M`rows)] | elem_product_left(OM, el) = M,
+           cr: below(M`rows) |   rref?(M, cr)
+                               & (forall (i: upto(cr)): nonzero_row?(M, i))
+                               & M`matrix(cr, pivot(M, cr)) = 1
+                               & forall (i: subrange(cr, M`rows-1)):
+                                   nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i),
+           r: below(M`rows) | forall (i: below(r)):
+                                 i /= cr => M`matrix(i, pivot(M, cr)) = 0):
+     let (M1, e1) = ge1_step(OM, M, el, cr, r)
+      in   cr < M1`rows AND rref?(M1, cr)
+         & (forall (i: upto(cr)): nonzero_row?(M1, i))
+         & M1`matrix(cr, pivot(M1, cr)) = 1
+         & (forall (i: subrange(cr, M1`rows - 1)):
+            nonzero_row?(M1, i) => pivot(M1, cr) <= pivot(M1, i))
+
+ ge1_step_rref: lemma
+   forall (OM: Matrix,
+           M: Matrix | same_dim?(M, OM),
+           el: list[ElemMat(M`rows)] | elem_product_left(OM, el) = M,
+           cr: below(M`rows) |   rref?(M, cr)
+                               & (forall (i: upto(cr)): nonzero_row?(M, i))
+                               & M`matrix(cr, pivot(M, cr)) = 1
+                               & forall (i: subrange(cr, M`rows-1)):
+                                   nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i),
+           r: below(M`rows) | forall (i: below(r)):
+                                  i /= cr => M`matrix(i, pivot(M, cr)) = 0):
+     r = M`rows - 1 =>
+       let (M1, e1) = ge1_step(OM, M, el, cr, r)
+        in same_dim?(M1, OM) & rref?(M1, 1 + cr)
+
+ ge1_step_zeros: lemma
+   forall (OM: Matrix,
+           M: Matrix | same_dim?(M, OM),
+           el: list[ElemMat(M`rows)] | elem_product_left(OM, el) = M,
+           cr: below(M`rows) |   rref?(M, cr)
+                               & (forall (i: upto(cr)): nonzero_row?(M, i))
+                               & M`matrix(cr, pivot(M, cr)) = 1
+                               & forall (i: subrange(cr, M`rows-1)):
+                                   nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i),
+           r: below(M`rows) | forall (i: below(r)):
+                                   i /= cr => M`matrix(i, pivot(M, cr)) = 0):
+     r /= M`rows - 1 =>
+       let (M1, e1) = ge1_step(OM, M, el, cr, r)
+        in r + 1 < OM`rows
+            & (forall (i: below(1 + r)):
+                 i /= cr => M1`matrix(i, pivot(M1, cr)) = 0)
+
+ ge1_rec(OM: Matrix,
+         M: Matrix | same_dim?(M, OM),
+         el: list[ElemMat(M`rows)] | elem_product_left(OM, el) = M,
+         cr: below(M`rows) |   rref?(M, cr)
+                             & (forall (i: upto(cr)): nonzero_row?(M, i))
+                             & M`matrix(cr, pivot(M, cr)) = 1
+                             & forall (i: subrange(cr, M`rows-1)):
+                                 nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i),
+         r: below(M`rows) | forall (i: below(r)):
+                               i /= cr => M`matrix(i, pivot(M, cr)) = 0):
+   RECURSIVE
+    [M1: {M1: Matrix |   same_dim?(M1, OM)
+                       & rref?(M1, cr+1)
+                       & (forall (i: upto(cr)): nonzero_row?(M1, i))
+                       & M1`matrix(cr, pivot(M1, cr)) = 1},
+     {el: list[ElemMat(OM`rows)] | elem_product_left(OM, el) = M1}] =
+   let (M1, e1) = ge1_step(OM, M, el, cr, r)
+    in if r = M`rows - 1
+       then (M1, e1)
+       else ge1_rec(OM, M1, e1, cr, r+1)
+       endif
+  measure OM`rows - r
+
+ % ge1 takes a matrix M and a nonzero row cr at which its pivot value is 1,
+ % and returns a matrix M with all other rows zeroed out in that column .
+ ge1(M: Matrix,
+     cr: below(M`rows) |   rref?(M, cr)
+                         & (forall (i: upto(cr)): nonzero_row?(M, i))
+                         & M`matrix(cr, pivot(M, cr)) = 1
+                         & forall (i: subrange(cr, M`rows-1)):
+                             nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i)):
+    [M1: {M1: Matrix |   same_dim?(M1, M)
+                       & rref?(M1, cr+1)
+                       & (forall (i: upto(cr)): nonzero_row?(M1, i))
+                       & M1`matrix(cr, pivot(M1, cr)) = 1},
+     {el: list[ElemMat(M`rows)] | elem_product_left(M, el) = M1}] =
+   ge1_rec(M, M, null, cr, 0)
+
+ % ge1_invariant: lemma
+ %   forall (M: Matrix,
+ %           cr: below(M`rows) |  rref?(M, cr)
+ %                              & (forall (i: upto(cr)): nonzero_row?(M, i))
+ %                              & M`matrix(cr, pivot(M, cr)) = 1
+ %                              & forall (i: subrange(cr, M`rows-1)):
+ %                                  nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i)):
+ %     let (M1, e1) = ge1(M, cr)
+ %      in cr+1 <= M1`rows & rref?(M1, cr+1)
+
+ ge2(M: Matrix,
+     cr: below(M`rows) |   rref?(M, cr)
+                         & (forall (i: below(cr)): nonzero_row?(M, i)),
+     pr: subrange(cr, M`rows-1) |   nonzero_row?(M, pr)
+                                  & forall (i: subrange(cr, M`rows-1)):
+                                      nonzero_row?(M, i) => pivot(M, pr) <= pivot(M, i)):
+    [M2: {M2: Matrix |   same_dim?(M2, M)
+                       & rref?(M2, cr)
+                       & (forall (i: upto(cr)): nonzero_row?(M2, i))
+                       & (forall (i: subrange(cr, M2`rows-1)):
+                           nonzero_row?(M2, i) => pivot(M2, cr) <= pivot(M2, i))},
+     {el: list[ElemMat(M`rows)] | elem_product_left(M, el) = M2}] =
+   if cr = pr
+   then (M, null)
+   else let e2 = elemM2(M`rows)(cr, pr)
+         in (e2 * M, cons(e2, null))
+   endif
+
+ ge3(M: Matrix,
+     cr: below(M`rows) |   rref?(M, cr)
+                         & (forall (i: upto(cr)): nonzero_row?(M, i))
+                         & (forall (i: subrange(cr, M`rows-1)):
+                              nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i))):
+    [M3: {M3: Matrix |   same_dim?(M3, M)
+                       & rref?(M3, cr)
+                       & (forall (i: upto(cr)): nonzero_row?(M3, i))
+                       & M3`matrix(cr, pivot(M3, cr)) = 1
+                       & (forall (i: subrange(cr, M3`rows-1)):
+                            nonzero_row?(M3, i) => pivot(M3, cr) <= pivot(M3, i))},
+     {el: list[ElemMat(M`rows)] | elem_product_left(M, el) = M3}] =
+   if M`matrix(cr, pivot(M, cr)) = 1
+   then (M, null)
+   else let v = M`matrix(cr, pivot(M, cr)),
+            e3 = elemM3(M`rows)(cr)(1/v)
+         in (e3 * M, cons(e3, null))
+   endif
+
+ ge_rec_rref_aux: lemma
+  forall (OM: Matrix,
+          M: (same_dim?(OM)),
+          cr: below(OM`rows) | rref?(M, cr)):
+    not reduced_row_echelon_form?(M) implies
+     cr < M`rows and (exists (i: subrange(cr, M`rows - 1)): nonzero_row?(M, i));
+
+ % ge_rec_rref_aux2: lemma
+ %  forall (OM: Matrix, M: (same_dim?(OM)), cr: upto(OM`rows) | rref?(M, cr),
+ %          emlist: list[ElemMat(OM`rows)] | elem_product_left(OM, emlist) = M):
+ %    not reduced_row_echelon_form?(M) implies
+ %     (forall (pr:
+ %                {i: subrange(cr, M`rows - 1) |
+ %                         nonzero_row?(M, i) &
+ %                          (forall (j: subrange(cr, M`rows - 1)):
+ %                             nonzero_row?(M, j) =>
+ %                              pivot(M, i) <= pivot(M, j))}):
+ %        pr = find_pivot_row(M, cr) implies
+ %         cr < M`rows &
+ %          rref?(M, cr) & (forall (i: below(cr)): nonzero_row?(M, i)));
+
+ ge_rec_rref_pivot: lemma
+  forall (OM: Matrix, M: (same_dim?(OM)),
+          cr: below(OM`rows)
+              | rref?(M, cr) & (forall (i: below(cr)): nonzero_row?(M, i))):
+    not reduced_row_echelon_form?(M) implies
+      let pr = find_pivot_row(M, cr),
+          % First use E2 to swap rows cr and pr, then
+          % E3 to create unit at M(cr, pivot(M, cr)), then
+          % E1 (recursively) to remove all other entries in that column
+          (M2, el2) = ge2(M, cr, pr)
+       in cr < M2`rows &
+           rref?(M2, cr) &
+            (FORALL (i: upto(cr)): nonzero_row?(M2, i)) &
+             (FORALL (i: subrange(cr, M2`rows - 1)):
+                nonzero_row?(M2, i) => pivot(M2, cr) <= pivot(M2, i));
+
+ ge2_rref_pivot: lemma
+   forall (OM: Matrix,
+           M: (same_dim?(OM)),
+           cr: below(OM`rows) |   rref?(M, cr)
+                               & (forall (i: below(cr)): nonzero_row?(M, i)),
+           emlist: list[ElemMat(OM`rows)]
+             | elem_product_left(OM, emlist) = M):
+     not reduced_row_echelon_form?(M) =>
+       let pr = find_pivot_row(M, cr),
+           (M2, el2) = ge2(M, cr, pr)
+        in   cr <= M2`rows
+           & (forall (i: upto(cr)): nonzero_row?(M2, i))
+           & (forall (i: subrange(cr, M2`rows - 1)):
+                nonzero_row?(M2, i) => pivot(M2, cr) <= pivot(M2, i))
+
+ ge3_rref_pivot: lemma
+   forall (M: Matrix,
+           cr: below(M`rows) |  rref?(M, cr)
+                              & (forall (i: upto(cr)): nonzero_row?(M, i))
+                              & (forall (i: subrange(cr, M`rows-1)):
+                                    nonzero_row?(M, i) => pivot(M, cr) <= pivot(M, i))):
+      let (M3, el3) = ge3(M, cr)
+       in   cr < M3`rows AND rref?(M3, cr)
+          & (forall (i: upto(cr)): nonzero_row?(M3, i))
+          & M3`matrix(cr, pivot(M3, cr)) = 1
+          & (forall (i: subrange(cr, M3`rows - 1)):
+               nonzero_row?(M3, i) => pivot(M3, cr) <= pivot(M3, i));
+
+ ge3_ge2_rref_pivot: lemma
+   forall (OM: Matrix,
+           M: (same_dim?(OM)),
+           cr: below(OM`rows) |   rref?(M, cr)
+                               & (forall (i: below(cr)): nonzero_row?(M, i)),
+           emlist: list[ElemMat(OM`rows)]
+             | elem_product_left(OM, emlist) = M):
+     not reduced_row_echelon_form?(M) =>
+          let pr = find_pivot_row(M, cr),
+              (M2, el2) = ge2(M, cr, pr),
+	      (M3, el3) = ge3(M2, cr)
+           in   cr < M3`rows AND rref?(M3, cr)
+              & (forall (i: upto(cr)): nonzero_row?(M3, i))
+              & M3`matrix(cr, pivot(M3, cr)) = 1
+              & (forall (i: subrange(cr, M3`rows - 1)):
+                        nonzero_row?(M3, i) => pivot(M3, cr) <= pivot(M3, i));
+
+ ge_rec_rref: lemma
+   forall (OM: Matrix,
+           M: (same_dim?(OM)),
+           cr: below(OM`rows) |   rref?(M, cr)
+                               & (forall (i: below(cr)): nonzero_row?(M, i)),
+           emlist: list[ElemMat(OM`rows)]
+             | elem_product_left(OM, emlist) = M):
+     not reduced_row_echelon_form?(M) =>
+          let pr = find_pivot_row(M, cr),
+              % First use E2 to swap rows cr and pr, then
+              % E3 to create unit at M(cr, pivot(M, cr)), then
+              % E1 (recursively) to remove all other entries in that column
+              (M2, el2) = ge2(M, cr, pr),
+	      (M3, el3) = ge3(M2, cr),
+              (M1, el1) = ge1(M3, cr),
+              el = append(emlist, append(el2, append[Matrix](el3, el1)))
+           in reduced_row_echelon_form?(M1)
+                => same_dim?(OM)(M1) AND rref?(M1, M1`rows)
+
+ ge1_ge3_ge2_prod: lemma
+  forall (OM: Matrix,
+          M: (same_dim?(OM)),
+          cr: below(OM`rows) |   rref?(M, cr)
+                               & (forall (i: below(cr)): nonzero_row?(M, i)),
+          emlist: list[ElemMat(OM`rows)] | elem_product_left(OM, emlist) = M):
+   reduced_row_echelon_form?(M) or
+     let pr = find_pivot_row(M, cr),
+         (M2, el2) = ge2(M, cr, pr),
+         (M3, el3) = ge3(M2, cr),
+         (M1, el1) = ge1(M3, cr),
+         el = append(emlist, append(el2, append[Matrix](el3, el1)))
+      in   every[Matrix](lambda (x: Matrix):
+                           square?(x) & squareMat?(OM`rows)(x) & elemMat?(OM`rows)(x))
+                        (el)
+         & elem_product_left(OM, el) = M1
+
+ ge1_ge3_ge2_iter: lemma
+  forall (OM: Matrix,
+          M: (same_dim?(OM)),
+          cr: below(OM`rows) |   rref?(M, cr)
+                               & (forall (i: below(cr)): nonzero_row?(M, i)),
+          emlist: list[ElemMat(OM`rows)] | elem_product_left(OM, emlist) = M):
+   reduced_row_echelon_form?(M) or
+     let pr = find_pivot_row(M, cr),
+         (M2, el2) = ge2(M, cr, pr),
+         (M3, el3) = ge3(M2, cr),
+         (M1, el1) = ge1(M3, cr),
+         el = append(emlist, append(el2, append[Matrix](el3, el1)))
+      in reduced_row_echelon_form?(M1) or
+         (  cr + 1 < OM`rows
+          & rref?(M1, cr + 1)
+          & (forall (i: below(1 + cr)): nonzero_row?(M1, i)))
+
+ % Recursively reduce the original matrix OM, each recursive step producing M,
+ % cr is the current row being processed, (pr, pc) is the next pivot point
+ gaussian_elimination_rec(OM: Matrix,
+                          M: (same_dim?(OM)),
+                          cr: below(OM`rows) |   rref?(M, cr)
+                                               & (forall (i: below(cr)):
+                                                    nonzero_row?(M, i)),
+                          emlist: list[ElemMat(OM`rows)]
+                                | elem_product_left(OM, emlist) = M)
+       : recursive [Mr: {M1: (same_dim?(OM)) | rref?(M1, M1`rows)},
+                    {el: list[ElemMat(OM`rows)] | elem_product_left(OM, el) = Mr}]
+   = if reduced_row_echelon_form?(M)
+     then (M, emlist)
+     else let pr = find_pivot_row(M, cr),
+              % First use E2 to swap rows cr and pr, then
+              % E3 to create unit at M(cr, pivot(M, cr)), then
+              % E1 (recursively) to remove all other entries in that column
+              (M2, el2) = ge2(M, cr, pr),
+	      (M3, el3) = ge3(M2, cr),
+              (M1, el1) = ge1(M3, cr),
+              el = append(emlist, append(el2, append[Matrix](el3, el1)))
+           in if reduced_row_echelon_form?(M1)
+              then (M1, el)
+              else gaussian_elimination_rec(OM, M1, cr+1, el)
+              endif
+     endif
+   measure M`rows - cr
+
+ gaussian_elimination(M: Matrix)
+       : [Mr: {M1: (same_dim?(M)) | reduced_row_echelon_form?(M1)},
+          {el: list[ElemMat(M`rows)] | elem_product_left(M, el) = Mr}]
+   = gaussian_elimination_rec(M, M, 0, null)
+
+end gauss_jordan

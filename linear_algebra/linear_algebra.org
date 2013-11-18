@@ -1,0 +1,64 @@
+* Linear Algebra in PVS
+
+** Topics 
+  (this is the TOC from Linear Algebra, 4th Edition, Friedberg, Insel, and Spence)
+  1. Vector Spaces. 
+    1. Introduction. 
+    2. Vector Spaces. 
+    3. Subspaces. 
+    4. Linear Combinations and Systems of Linear Equations.
+    5. Linear Dependence and Linear Independence.
+    6. Bases and Dimension.
+    7. Maximal Linearly Independent Subsets.
+  2. Linear Transformations and Matrices. 
+    1. Linear Transformations, Null Spaces, and Ranges.
+    2. The Matrix Representation of a Linear Transformation.
+    3. Composition of Linear Transformations and Matrix Multiplication.
+    4. Invertibility and Isomorphisms.
+    5. The Change of Coordinate Matrix.
+    6. Dual Spaces.
+    7. Homogeneous Linear Differential Equations with Constant Coefficients.
+  3. Elementary Matrix Operations and Systems of Linear Equations. 
+    1. Elementary Matrix Operations and Elementary Matrices.
+    2. The Rank of a Matrix and Matrix Inverses.
+    3. Systems of Linear Equations—Theoretical Aspects.
+    4. Systems of Linear Equations—Computational Aspects.
+  4. Determinants. 
+    1. Determinants of Order 2.
+    2. Determinants of Order n.
+    3. Properties of Determinants.
+    4. Summary—Important Facts about Determinants.
+    5. A Characterization of the Determinant.
+  5. Diagonalization. 
+    1. Eigenvalues and Eigenvectors.
+    2. Diagonalizability.
+    3. Matrix Limits and Markov Chains.
+    4. Invariant Subspaces and the Cayley-Hamilton Theorem.
+  6. Inner Product Spaces. 
+    1. Inner Products and Norms.
+    2. The Gram-Schmidt Orthogonalization Process and Orthogonal Complements.
+    3. The Adjoint of a Linear Operator.
+    4. Normal and Self-Adjoint Operators.
+    5. Unitary and Orthogonal Operators and Their Matrices.
+    6. Orthogonal Projections and the Spectral Theorem.
+    7. The Singular Value Decomposition and the Pseudoinverse.
+    8. Bilinear and Quadratic Forms.
+    9. Einstein's Special Theory of Relativity.
+    10. Conditioning and the Rayleigh Quotient.
+    11. The Geometry of Orthogonal Operators.
+  7. Canonical Forms. 
+    1. The Jordan Canonical Form I.
+    2. The Jordan Canonical Form II.
+    3. The Minimal Polynomial.
+    4. Rational Canonical Form.
+
+** TODO This is just to get started, need to organize for PVS theories
+
+* Determinants
+There are a number of approaches to defining determinants
+
+- Cullen, Chapter 3. uses elementary matrices and the characterization
+  det(AB) = det(A)det(B) and det(I) = 1
+
+- Shilov, Chapter 1. uses summation over permutations
+

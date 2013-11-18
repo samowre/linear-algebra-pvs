@@ -1,0 +1,37 @@
+more_matrices: THEORY
+
+
+ BEGIN 
+
+ IMPORTING linear_algebra@matrices
+
+%congruent?(n)(A,B:Mat(n,n)):bool= EXISTS(Q:Mat(n,n)|invertible?(Q)):B=transpose(Q)*(A*Q)
+
+ eig(A: Matrix): TYPE = [# r:posnat,vec: [Vector_of_Vectors[A`cols,r]],val: [below[r]->real],D: {D:(diagonal?) | D`rows=r and D`cols=r} #]
+
+%Eig(A:(square?)):TYPE={d:eig(A)|forall(i:below[d`r]):A*d`vec(i)=d`val(i)*d`vec(i) AND forall(i:below[d`r]):d`D`matrix(i,i)=d`val(i) }
+
+
+
+%symmetric_diagonal_matrix:LEMMA FORALL (A:Mat(n,n),d:Eig(A)):symmetric?(A)
+%                                  IMPLIES 
+%                                  exists(D:(diagonal?)): congruent?(n)(A,D) AND forall (i:below[n]):D`matrix(i,i)=d`val(i);
+%r,l:  posnat
+%*(M: Matrix, (v: Vector_of_Vectors[M`cols,r])):[ Vector_of_Vectors[M`rows,r]] = LAMBDA (i: below(r)): M*v(i);
+%*((v1,v2:  Vector_of_Vectors[l,r])):Matrix =(#rows:=r,cols:=r,matrix:=lambda(i,j:below[r]):v1(i)*v2(j)#)
+
+%svd(A:(square?),d:{d:Eig(A)|A`rows>d`r }):Matrix=d`vec*(Block2M(M2Block(d`r,A`rows-d`r,d`r,A`cols-d`r)
+%                                       (d`D,Zero_mat(A`rows-d`r,d`r),Zero_mat(d`r,A`cols-d`r),Zero_mat(A`rows-d`r,A`cols-d`r)))*d`vec)
+
+%svd:THEOREM FORALL (A:(symmetric?),d:Eig(A)): svd(A,d)=A
+
+
+%pseudo(A:(square?),d:{d:Eig(A)|A`rows>d`r }):Matrix=d`vec*(Block2M(M2Block(d`r,A`rows-d`r,d`r,A`cols-d`r)
+%                                       (inv(d`r)(d`D),Zero_mat(A`rows-d`r,d`r),Zero_mat(d`r,A`cols-d`r),Zero_mat(A`rows-d`r,A`cols-d`r)))*d`vec)
+
+%Pseudo_matrix:LEMMA FORALL(A:(square?),d:Eig(A)): A*pseudo(A,d)=d`vec*(Block2M(M2Block(d`r,A`rows-d`r,d`r,A`cols-d`r)
+%                                       (I(d`r),Zero_mat(A`rows-d`r,d`r),Zero_mat(d`r,A`cols-d`r),Zero_mat(A`rows-d`r,A`cols-d`r)))*d`vec)
+
+%Pseudo:LEMMA FORALL (A:(symmetric?),d:Eig(A)): A*(pseudo(A,d)*A)=A AND pseudo(A,d)*(A*pseudo(A,d))=pseudo(A,d)
+
+END more_matrices

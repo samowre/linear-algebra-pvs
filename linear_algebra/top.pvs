@@ -1,0 +1,50 @@
+%------------------------------------------------------------------------
+%  Top of linear algebra theory   05/10/2012
+%------------------------------------------------------------------------
+%   
+%      Index:
+%      ------
+%
+%	sigma_lemmas		-- lemmas about sums ************ This would be better placed in the reals library **********************
+%
+%	linear_map		-- definitions about maps
+%	sigma_vector		-- summation of vector valued functions
+%	linear_map_def		-- definitions and lemmas about linear maps
+%
+%	vect_of_vect		-- definition of vector of vectors
+%	matrices		-- theory about matrices
+%	matrix_operator		-- bijection between matrices and linear maps
+%	matrix_lemmas		-- basic lemmas about matrices
+%	block_matrices		-- theory about block vectors and block matrices
+%
+%
+%
+%  This theory was designed for making libraries and is not intended
+%  for importing. One should directly import one of the above listed
+%  theories.
+%
+%  Author Name: H. Herencia-Zapana P. Ascariz
+%                G. Pérez F. Aguado
+%------------------------------------------------------------------------
+
+
+top: THEORY
+
+
+
+BEGIN
+
+ IMPORTING	sigma_lemmas,
+
+		linear_map,
+ 		sigma_vector,
+            	linear_map_def,
+
+		vect_of_vect,
+		matrices,
+            	matrix_operator,
+		matrix_lemmas,
+		block_matrices
+
+
+END top
